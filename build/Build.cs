@@ -12,6 +12,9 @@ using static Nuke.Common.EnvironmentInfo;
 using static Nuke.Common.IO.FileSystemTasks;
 using static Nuke.Common.IO.PathConstruction;
 using static Nuke.Common.IO.HttpTasks;
+using Serilog;
+using System.Net.Http.Headers;
+using System.IO;
 
 class Build : NukeBuild
 {
@@ -21,14 +24,17 @@ class Build : NukeBuild
     ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
     ///   - Microsoft VSCode           https://nuke.build/vscode
 
-    public static int Main () => Execute<Build>(x => x.BuildGcc);
+    public static int Main () => Execute<Build>(x => x.CreateSysroot);
 
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
 
     readonly AbsolutePath WorkDir = RootDirectory / "workdir";
     readonly AbsolutePath ToolchainsDir = RootDirectory / "toolchains";
-    readonly AbsolutePath SysrootsDir = RootDirectory / "sysroots";
+    readonly AbsolutePath SysrootsDirs = RootDirectory / "sysroots";
+
+    [PathVariable("mmdebstrap")]
+    Tool Mmdebstrap;
 
     Target CleanWorkdir => _ => _
         .Executes(() =>
@@ -81,22 +87,49 @@ class Build : NukeBuild
         }
         );
 
-    Target DownloadToolchain => _ => _
+    Target CreateSysroot => _ => _
         .Executes(() =>
         {
+            var platform = SupportedPlatforms.RaspberryPi;
+            var sysrootDir = SysrootsDirs / $"{platform.NameStub}-{platform.DebianReleaseName}-{platform.Arch}";
+            Log.Information($"Creating sysroot for {sysrootDir.Name}");
+            sysrootDir.CreateOrCleanDirectory();
+            
+            Log.Information($"Running mmdebstrap for {sysrootDir.Name}");
 
-        }
-        );
+            var sourcesFile = RootDirectory / $"{platform.NameStub}-{platform.DebianReleaseName}-{platform.Arch}.sources.list";
+            if(!sourcesFile.FileExists())
+            {
+                throw new FileNotFoundException($"Source file {sourcesFile} not found");
+            }
 
-    Target Restore => _ => _
-        .Executes(() =>
-        {
-        });
-
-    Target Compile => _ => _
-        .DependsOn(Restore)
-        .Executes(() =>
-        {
+            string[] debstrapArgsArray = [
+                "--mode=unshare",
+                $"--architectures={platform.Arch}",
+                "--variant=extract",
+                $"--keyring={RootDirectory/"keyring"}",
+                // "--aptopt=Acquire::AllowInsecureRepositories true",
+                // "--aptopt=Acquire::AllowDowngradeToInsecureRepositories true",
+                // "--aptopt=APT::Get::AllowUnauthenticated true",
+                $"--include={string.Join(',',platform.BuildDeps)}",
+                "--dpkgopt=path-exclude=\"*\"",
+                "--dpkgopt=path-include=\"/lib/*\"",
+                "--dpkgopt=path-include=\"/lib32/*\"",
+                "--dpkgopt=path-include=\"/usr/include/*\"",
+                "--dpkgopt=path-include=\"/usr/lib/*\"",
+                "--dpkgopt=path-include=\"/usr/lib32/*\"",
+                "--dpkgopt=path-exclude=\"/usr/lib/debug/*\"",
+                "--dpkgopt=path-exclude=\"/usr/lib/python*\"",
+                "--dpkgopt=path-exclude=\"/usr/lib/valgrind/*\"",
+                "--dpkgopt=path-include=\"/usr/share/pkgconfig/*\"",
+                $"{platform.DebianReleaseName}",
+                $"{sysrootDir}",
+                $"{sourcesFile}",
+                "-v"
+                ];
+            var debstrapArgs = string.Join(' ', debstrapArgsArray);
+            Log.Information($"Calling {debstrapArgs}");
+            Mmdebstrap(debstrapArgs);
         });
 
 }

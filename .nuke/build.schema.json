@@ -75,9 +75,7 @@
               "BuildGcc",
               "CleanBuildSystem",
               "CleanWorkdir",
-              "Compile",
-              "DownloadToolchain",
-              "Restore"
+              "CreateSysroot"
             ]
           }
         },
@@ -90,9 +88,7 @@
               "BuildGcc",
               "CleanBuildSystem",
               "CleanWorkdir",
-              "Compile",
-              "DownloadToolchain",
-              "Restore"
+              "CreateSysroot"
             ]
           }
         },
