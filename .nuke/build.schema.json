@@ -73,6 +73,7 @@
             "type": "string",
             "enum": [
               "BuildGcc",
+              "BuildOpenHd",
               "CleanBuildSystem",
               "CleanWorkdir",
               "CreateSysroot"
@@ -86,6 +87,7 @@
             "type": "string",
             "enum": [
               "BuildGcc",
+              "BuildOpenHd",
               "CleanBuildSystem",
               "CleanWorkdir",
               "CreateSysroot"

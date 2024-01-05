@@ -8,7 +8,19 @@ internal static class SupportedPlatforms
         Arch = ArchStrings.armhf,
         BuildDeps = 
         [
-            "libpcap-dev"
+            "libpcap-dev",
+            "libusb-1.0-0-dev",
+            "libpcap-dev", 
+            "libsodium-dev", 
+            "libnl-3-dev",
+            "libnl-genl-3-dev",
+            "libnl-route-3-dev",
+            "libsdl2-dev",
+            "libgstreamer-plugins-base1.0-dev",
+            "libgstreamer1.0-dev",
+            "libv4l-dev",
+            "libcamera-openhd",
+            "libgnutls30"
         ],
         Mirrors = 
         [

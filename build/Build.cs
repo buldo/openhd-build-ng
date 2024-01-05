@@ -15,6 +15,10 @@ using static Nuke.Common.IO.HttpTasks;
 using Serilog;
 using System.Net.Http.Headers;
 using System.IO;
+using Nuke.Common.Tools.Git;
+using static Nuke.Common.Tools.Git.GitTasks;
+using System.Collections.Generic;
+using Stubble.Core.Builders;
 
 class Build : NukeBuild
 {
@@ -29,12 +33,19 @@ class Build : NukeBuild
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
 
+    readonly BuildPlatform TargetPlatform = SupportedPlatforms.RaspberryPi;
     readonly AbsolutePath WorkDir = RootDirectory / "workdir";
     readonly AbsolutePath ToolchainsDir = RootDirectory / "toolchains";
     readonly AbsolutePath SysrootsDirs = RootDirectory / "sysroots";
 
     [PathVariable("mmdebstrap")]
     Tool Mmdebstrap;
+
+    [PathVariable("cmake")]
+    Tool Cmake;
+
+    [PathVariable("make")]
+    Tool Make;
 
     Target CleanWorkdir => _ => _
         .Executes(() =>
@@ -88,16 +99,16 @@ class Build : NukeBuild
         );
 
     Target CreateSysroot => _ => _
+        .Before(BuildOpenHd)
         .Executes(() =>
         {
-            var platform = SupportedPlatforms.RaspberryPi;
-            var sysrootDir = SysrootsDirs / $"{platform.NameStub}-{platform.DebianReleaseName}-{platform.Arch}";
+            var sysrootDir = GetSysrootDir();
             Log.Information($"Creating sysroot for {sysrootDir.Name}");
             sysrootDir.CreateOrCleanDirectory();
             
             Log.Information($"Running mmdebstrap for {sysrootDir.Name}");
 
-            var sourcesFile = RootDirectory / $"{platform.NameStub}-{platform.DebianReleaseName}-{platform.Arch}.sources.list";
+            var sourcesFile = RootDirectory / $"{TargetPlatform.NameStub}-{TargetPlatform.DebianReleaseName}-{TargetPlatform.Arch}.sources.list";
             if(!sourcesFile.FileExists())
             {
                 throw new FileNotFoundException($"Source file {sourcesFile} not found");
@@ -105,24 +116,22 @@ class Build : NukeBuild
 
             string[] debstrapArgsArray = [
                 "--mode=unshare",
-                $"--architectures={platform.Arch}",
+                $"--architectures={TargetPlatform.Arch}",
                 "--variant=extract",
                 $"--keyring={RootDirectory/"keyring"}",
-                // "--aptopt=Acquire::AllowInsecureRepositories true",
-                // "--aptopt=Acquire::AllowDowngradeToInsecureRepositories true",
-                // "--aptopt=APT::Get::AllowUnauthenticated true",
-                $"--include={string.Join(',',platform.BuildDeps)}",
-                "--dpkgopt=path-exclude=\"*\"",
-                "--dpkgopt=path-include=\"/lib/*\"",
-                "--dpkgopt=path-include=\"/lib32/*\"",
-                "--dpkgopt=path-include=\"/usr/include/*\"",
-                "--dpkgopt=path-include=\"/usr/lib/*\"",
-                "--dpkgopt=path-include=\"/usr/lib32/*\"",
-                "--dpkgopt=path-exclude=\"/usr/lib/debug/*\"",
-                "--dpkgopt=path-exclude=\"/usr/lib/python*\"",
-                "--dpkgopt=path-exclude=\"/usr/lib/valgrind/*\"",
-                "--dpkgopt=path-include=\"/usr/share/pkgconfig/*\"",
-                $"{platform.DebianReleaseName}",
+                $"--include={string.Join(',',TargetPlatform.BuildDeps)}",
+                // "--dpkgopt=path-exclude=\"*\"",
+                // "--dpkgopt=path-include=\"/lib/*\"",
+                // "--dpkgopt=path-include=\"/lib32/*\"",
+                // "--dpkgopt=path-include=\"/usr/include/*\"",
+                // "--dpkgopt=path-include=\"/usr/lib/*\"",
+                // "--dpkgopt=path-include=\"/usr/lib32/*\"",
+                // "--dpkgopt=path-exclude=\"/usr/lib/debug/*\"",
+                // "--dpkgopt=path-exclude=\"/usr/lib/python*\"",
+                // "--dpkgopt=path-exclude=\"/usr/lib/valgrind/*\"",
+                // "--dpkgopt=path-include=\"/usr/share/pkgconfig/*\"",
+                // "--dpkgopt=path-include=\"/usr/pkgconfig/*\"",
+                $"{TargetPlatform.DebianReleaseName}",
                 $"{sysrootDir}",
                 $"{sourcesFile}",
                 "-v"
@@ -132,4 +141,50 @@ class Build : NukeBuild
             Mmdebstrap(debstrapArgs);
         });
 
+    Target BuildOpenHd => _ => _
+        .Executes(() => 
+        {
+            WorkDir.CreateDirectory();
+            Log.Information("Cloning OpenHD");
+            (WorkDir/"OpenHD").DeleteDirectory();
+            Git("clone --recurse-submodules https://github.com/OpenHD/OpenHD.git", WorkDir);
+            Log.Information("Clonned");
+            var buildDir = WorkDir / "OpenHD" / "OpenHD" / "build";
+            
+            Log.Information("Generating toochain file");
+            var toolchainFilePath = WorkDir / $"{TargetPlatform.NameStub}-{TargetPlatform.DebianReleaseName}-{TargetPlatform.Arch}.cmake";
+            Log.Information($"Toolchain file name \"{toolchainFilePath.Name}\"");
+            
+            var stubble = new StubbleBuilder().Build();
+            var data = new Dictionary<string, string>()
+            {
+                {"CMAKE_SYSTEM_NAME", "Linux"},
+                {"CMAKE_SYSTEM_PROCESSOR", TargetPlatform.Arch},
+                {"CMAKE_SYSROOT", GetSysrootDir()},
+                {"CMAKE_STAGING_PREFIX", GetSysrootDir()},
+                {"CMAKE_C_COMPILER", "arm-linux-gnueabihf-gcc-10"},
+                {"CMAKE_CXX_COMPILER", "arm-linux-gnueabihf-g++-10"}
+            };
+            var rendered = stubble.Render(File.ReadAllText(RootDirectory/"toolchain.cmake.template"), data);
+            File.WriteAllText(toolchainFilePath, rendered);
+
+            buildDir.CreateOrCleanDirectory();
+
+            var sysroot = GetSysrootDir();
+            
+            var cmakeEnvVariables = new Dictionary<string, string>(EnvironmentInfo.Variables)
+            {
+                {"PKG_CONFIG_PATH", ""},
+                // TODO: {sysroot}/usr/lib/arm-linux-gnueabihf/pkgconfig have to be fixed to generated
+                {"PKG_CONFIG_LIBDIR", $"{sysroot}/usr/lib/pkgconfig:{sysroot}/usr/share/pkgconfig:{sysroot}/usr/lib/arm-linux-gnueabihf/pkgconfig"},
+                {"PKG_CONFIG_SYSROOT_DIR", sysroot},
+            };
+            Cmake($".. -DCMAKE_TOOLCHAIN_FILE={toolchainFilePath}", buildDir, cmakeEnvVariables);
+            Make($"-j{Environment.ProcessorCount}", buildDir);
+        });
+
+    AbsolutePath GetSysrootDir()
+    {
+        return SysrootsDirs / $"{TargetPlatform.NameStub}-{TargetPlatform.DebianReleaseName}-{TargetPlatform.Arch}";
+    }
 }
