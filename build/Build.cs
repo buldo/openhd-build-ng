@@ -36,7 +36,9 @@ partial class Build : NukeBuild
         WorkDir = RootDirectory / "workdir";
         ToolchainsDir = RootDirectory / "toolchains";
         SysrootsDirs = RootDirectory / "sysroots";
-        OpenIpcDir = WorkDir / "openipc";    
+        OpenIpcDir = WorkDir / "openipc";
+        CacheDir = RootDirectory / "cache";
+        OpenIpcDlDir = CacheDir / "openipc-dl";
     }
     
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
@@ -47,6 +49,8 @@ partial class Build : NukeBuild
     readonly AbsolutePath ToolchainsDir;
     readonly AbsolutePath SysrootsDirs;
     readonly AbsolutePath OpenIpcDir;
+    readonly AbsolutePath CacheDir;
+    readonly AbsolutePath OpenIpcDlDir;
 
     Target CleanWorkdir => _ => _
         .Executes(() =>
@@ -62,7 +66,15 @@ partial class Build : NukeBuild
                 WorkDir.CreateDirectory();
             }
         });
-    
+
+    Target EnsureCacheDirExists => _ => _
+        .Executes(() =>
+        {
+            if (!CacheDir.Exists())
+            {
+                CacheDir.CreateDirectory();
+            }
+        });
 
     Target CleanBuildSystem => _ => _
         .Before(BuildGcc)

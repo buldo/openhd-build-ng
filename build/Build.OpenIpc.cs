@@ -37,9 +37,27 @@ partial class Build : NukeBuild
             }
         });
 
+    Target EnsureOpenIpcDlDirExists => _ => _
+            .DependsOn(EnsureCacheDirExists)
+            .Executes(() =>
+            {
+                if (!OpenIpcDlDir.Exists())
+                {
+                    OpenIpcDlDir.CreateDirectory();
+                }
+            });
+    
     Target BuildOpenIpc => _ => _
         .DependsOn(CheckoutOpenIpc)
+        .DependsOn(EnsureOpenIpcDlDirExists)
         .Executes(() =>
         {
+            var envVariables = new Dictionary<string, string>(EnvironmentInfo.Variables)
+            {
+                { "BR2_DL_DIR", OpenIpcDlDir },
+                { "BOARD", "ssc338q_ultimate_defconfig" }
+            };
+
+            Make("build", OpenIpcDir, envVariables);
         });
 }
