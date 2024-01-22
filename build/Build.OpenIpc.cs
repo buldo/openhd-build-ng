@@ -57,6 +57,7 @@ partial class Build : NukeBuild
                 { "BR2_DL_DIR", OpenIpcDlDir },
                 { "BOARD", "ssc338q_ultimate_defconfig" }
             };
+            envVariables["PWD"] = OpenIpcDir;
 
             Make("build", OpenIpcDir, envVariables);
         });
