@@ -20,7 +20,7 @@ using static Nuke.Common.Tools.Git.GitTasks;
 using System.Collections.Generic;
 using Stubble.Core.Builders;
 
-class Build : NukeBuild
+partial class Build : NukeBuild
 {
     /// Support plugins are available for:
     ///   - JetBrains ReSharper        https://nuke.build/resharper
@@ -28,30 +28,41 @@ class Build : NukeBuild
     ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
     ///   - Microsoft VSCode           https://nuke.build/vscode
 
-    public static int Main () => Execute<Build>(x => x.CreateSysroot);
+    public static int Main () => Execute<Build>(x => x.BuildOpenIpc);
 
+    public Build()
+    {
+        TargetPlatform = SupportedPlatforms.RaspberryPi;
+        WorkDir = RootDirectory / "workdir";
+        ToolchainsDir = RootDirectory / "toolchains";
+        SysrootsDirs = RootDirectory / "sysroots";
+        OpenIpcDir = WorkDir / "openipc";    
+    }
+    
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
 
-    readonly BuildPlatform TargetPlatform = SupportedPlatforms.RaspberryPi;
-    readonly AbsolutePath WorkDir = RootDirectory / "workdir";
-    readonly AbsolutePath ToolchainsDir = RootDirectory / "toolchains";
-    readonly AbsolutePath SysrootsDirs = RootDirectory / "sysroots";
-
-    [PathVariable("mmdebstrap")]
-    Tool Mmdebstrap;
-
-    [PathVariable("cmake")]
-    Tool Cmake;
-
-    [PathVariable("make")]
-    Tool Make;
+    readonly BuildPlatform TargetPlatform;
+    readonly AbsolutePath WorkDir;
+    readonly AbsolutePath ToolchainsDir;
+    readonly AbsolutePath SysrootsDirs;
+    readonly AbsolutePath OpenIpcDir;
 
     Target CleanWorkdir => _ => _
         .Executes(() =>
         {
             WorkDir.CreateOrCleanDirectory();
         });
+
+    Target EnsureWorkDirExists => _ => _
+        .Executes(() =>
+        {
+            if (!WorkDir.Exists())
+            {
+                WorkDir.CreateDirectory();
+            }
+        });
+    
 
     Target CleanBuildSystem => _ => _
         .Before(BuildGcc)

@@ -74,9 +74,12 @@
             "enum": [
               "BuildGcc",
               "BuildOpenHd",
+              "BuildOpenIpc",
+              "CheckoutOpenIpc",
               "CleanBuildSystem",
               "CleanWorkdir",
-              "CreateSysroot"
+              "CreateSysroot",
+              "EnsureWorkDirExists"
             ]
           }
         },
@@ -88,9 +91,12 @@
             "enum": [
               "BuildGcc",
               "BuildOpenHd",
+              "BuildOpenIpc",
+              "CheckoutOpenIpc",
               "CleanBuildSystem",
               "CleanWorkdir",
-              "CreateSysroot"
+              "CreateSysroot",
+              "EnsureWorkDirExists"
             ]
           }
         },
