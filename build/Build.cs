@@ -28,16 +28,20 @@ partial class Build : NukeBuild
     ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
     ///   - Microsoft VSCode           https://nuke.build/vscode
 
-    public static int Main () => Execute<Build>(x => x.CleanWorkdir);
+    public static int Main () => Execute<Build>(x => x.ApplyOhdToOIpc);
 
     public Build()
     {
         TargetPlatform = SupportedPlatforms.RaspberryPi;
-        WorkDir = RootDirectory / "workdir";
-        ToolchainsDir = RootDirectory / "toolchains";
-        SysrootsDirs = RootDirectory / "sysroots";
-        OpenIpcDir = WorkDir / "openipc";
-        CacheDir = RootDirectory / "cache";
+
+        WorkDir = RootDirectory.Parent / "ohd-build-workdir";
+        ToolchainsDir = WorkDir / "toolchains";
+        SysrootsDirs = WorkDir / "sysroots";
+        
+        BuildDir = WorkDir / "build";
+        OpenIpcDir = BuildDir / "openipc";
+        
+        CacheDir = WorkDir / "cache";
         OpenIpcDlDir = CacheDir / "openipc-dl";
     }
     
@@ -45,37 +49,7 @@ partial class Build : NukeBuild
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
 
     readonly BuildPlatform TargetPlatform;
-    readonly AbsolutePath WorkDir;
-    readonly AbsolutePath ToolchainsDir;
-    readonly AbsolutePath SysrootsDirs;
-    readonly AbsolutePath OpenIpcDir;
-    readonly AbsolutePath CacheDir;
-    readonly AbsolutePath OpenIpcDlDir;
-
-    Target CleanWorkdir => _ => _
-        .Executes(() =>
-        {
-            WorkDir.CreateOrCleanDirectory();
-        });
-
-    Target EnsureWorkDirExists => _ => _
-        .Executes(() =>
-        {
-            if (!WorkDir.Exists())
-            {
-                WorkDir.CreateDirectory();
-            }
-        });
-
-    Target EnsureCacheDirExists => _ => _
-        .Executes(() =>
-        {
-            if (!CacheDir.Exists())
-            {
-                CacheDir.CreateDirectory();
-            }
-        });
-
+    
     Target CleanBuildSystem => _ => _
         .Before(BuildGcc)
         .Executes(() =>

@@ -1,0 +1,7 @@
+config BR2_PACKAGE_OPENHD
+    bool "openhd"
+    select BR2_PACKAGE_LIBPCAP
+    select BR2_PACKAGE_LIBSODIUM
+
+    help
+      OpenHD package

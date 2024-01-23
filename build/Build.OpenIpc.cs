@@ -24,7 +24,7 @@ partial class Build : NukeBuild
 {
     Target CheckoutOpenIpc => _ => _
         .After(CleanWorkdir)
-        .DependsOn(EnsureWorkDirExists)
+        .DependsOn(EnsureBuildDirExists)
         .Executes(() =>
         {
             if (OpenIpcDir.Exists())
@@ -33,23 +33,35 @@ partial class Build : NukeBuild
             }
             else
             {
-                Git($"clone https://github.com/OpenIPC/firmware.git {OpenIpcDir.Name}", WorkDir);
+                Git($"clone https://github.com/OpenIPC/firmware.git {OpenIpcDir}", WorkDir);
             }
         });
 
-    Target EnsureOpenIpcDlDirExists => _ => _
-            .DependsOn(EnsureCacheDirExists)
-            .Executes(() =>
+    Target ApplyOhdToOIpc => _ => _
+        .DependsOn(EnsureOpenIpcDlDirExists)
+        .Executes(() => 
+        {
+            var boardConfig = OpenIpcDir / "br-ext-chip-sigmastar" / "configs" / "ssc338q_ultimate_defconfig";
+            if(!boardConfig.ReadAllText().Contains("BR2_PACKAGE_OPENHD=y"))
             {
-                if (!OpenIpcDlDir.Exists())
-                {
-                    OpenIpcDlDir.CreateDirectory();
-                }
-            });
-    
+                boardConfig.AppendAllLines(["BR2_PACKAGE_OPENHD=y"]);
+            }
+
+            var packagesDir = OpenIpcDir / "general" / "package";
+            var commonConfigIn = packagesDir / "Config.in";
+            if(!commonConfigIn.ReadAllText().Contains("openhd"))
+            {
+                commonConfigIn.AppendAllLines(["source \"$BR2_EXTERNAL_GENERAL_PATH/package/openhd/Config.in\""]);
+            }
+
+            var packageDir = packagesDir / "openhd";
+            CopyFile(RootDirectory / "openhd-openipc" / "openhd" / "Config.in", packageDir / "Config.in", FileExistsPolicy.Overwrite, true);
+        });
+
     Target BuildOpenIpc => _ => _
         .DependsOn(CheckoutOpenIpc)
         .DependsOn(EnsureOpenIpcDlDirExists)
+        .DependsOn(ApplyOhdToOIpc)
         .Executes(() =>
         {
             var envVariables = new Dictionary<string, string>(EnvironmentInfo.Variables)

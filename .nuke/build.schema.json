@@ -72,6 +72,7 @@
           "items": {
             "type": "string",
             "enum": [
+              "ApplyOhdToOIpc",
               "BuildGcc",
               "BuildOpenHd",
               "BuildOpenIpc",
@@ -79,6 +80,9 @@
               "CleanBuildSystem",
               "CleanWorkdir",
               "CreateSysroot",
+              "EnsureBuildDirExists",
+              "EnsureCacheDirExists",
+              "EnsureOpenIpcDlDirExists",
               "EnsureWorkDirExists"
             ]
           }
@@ -89,6 +93,7 @@
           "items": {
             "type": "string",
             "enum": [
+              "ApplyOhdToOIpc",
               "BuildGcc",
               "BuildOpenHd",
               "BuildOpenIpc",
@@ -96,6 +101,9 @@
               "CleanBuildSystem",
               "CleanWorkdir",
               "CreateSysroot",
+              "EnsureBuildDirExists",
+              "EnsureCacheDirExists",
+              "EnsureOpenIpcDlDirExists",
               "EnsureWorkDirExists"
             ]
           }
