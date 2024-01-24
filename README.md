@@ -1,5 +1,10 @@
 # openhd-build-ng
 
+## How to build for OpenIPC
+```sh
+./build.sh BuildOpenIpc
+```
+
 # Developing plan
 ## Stage1 (Done)
 DoD:
@@ -10,6 +15,10 @@ Prerequrements
 ```
 sudo apt install -y mmdebstrap gcc-10-arm-linux-gnueabihf g++-10-arm-linux-gnueabihf
 ```
+
+## Stage OpenIPC
+DoD:
+* OpenHD building for Sigmastar
 
 ## Stage2
 DoD:

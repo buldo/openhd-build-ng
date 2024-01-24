@@ -41,11 +41,10 @@ partial class Build : NukeBuild
         .DependsOn(EnsureOpenIpcDlDirExists)
         .Executes(() => 
         {
-            var boardConfig = OpenIpcDir / "br-ext-chip-sigmastar" / "configs" / "ssc338q_ultimate_defconfig";
-            if(!boardConfig.ReadAllText().Contains("BR2_PACKAGE_OPENHD=y"))
-            {
-                boardConfig.AppendAllLines(["BR2_PACKAGE_OPENHD=y"]);
-            }
+            CopyFile(
+                RootDirectory/ "openhd-openipc" / "br-ext-chip-sigmastar" / "configs" / "ssc338q_openhd_defconfig",
+                OpenIpcDir / "br-ext-chip-sigmastar" / "configs" / "ssc338q_openhd_defconfig",
+                FileExistsPolicy.Overwrite);
 
             var packagesDir = OpenIpcDir / "general" / "package";
             var commonConfigIn = packagesDir / "Config.in";
@@ -55,7 +54,16 @@ partial class Build : NukeBuild
             }
 
             var packageDir = packagesDir / "openhd";
-            CopyFile(RootDirectory / "openhd-openipc" / "openhd" / "Config.in", packageDir / "Config.in", FileExistsPolicy.Overwrite, true);
+            packageDir.DeleteDirectory();
+            CopyDirectoryRecursively(
+                RootDirectory / "openhd-openipc" / "openhd",
+                packageDir,
+                DirectoryExistsPolicy.Fail
+            );
+            CopyFile(
+                RootDirectory / "openhd-openipc" / "general" / "scripts" / "ubifs"/ "ubinize_sigmastar.cfg",
+                OpenIpcDir / "general" / "scripts" / "ubifs"/ "ubinize_sigmastar.cfg",
+                FileExistsPolicy.Overwrite);
         });
 
     Target BuildOpenIpc => _ => _
@@ -67,10 +75,10 @@ partial class Build : NukeBuild
             var envVariables = new Dictionary<string, string>(EnvironmentInfo.Variables)
             {
                 { "BR2_DL_DIR", OpenIpcDlDir },
-                { "BOARD", "ssc338q_ultimate_defconfig" }
+                { "BOARD", "ssc338q_openhd" }
             };
             envVariables["PWD"] = OpenIpcDir;
 
-            Make("build", OpenIpcDir, envVariables);
+            Make("all", OpenIpcDir, envVariables);
         });
 }

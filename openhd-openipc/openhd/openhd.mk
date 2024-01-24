@@ -3,11 +3,14 @@
 # OpenHD
 #
 ################################################################################
-OPENHD_VERSION = 1.0
-OPENHD_SOURCE = openhd-$(OPENHD_VERSION).tar.gz
-OPENHD_SITE = http://www.foosoftware.org/download
-OPENHD_INSTALL_STAGING = YES
-OPENHD_INSTALL_TARGET = NO
-OPENHD_CONF_OPTS = -DBUILD_DEMOS=ON
-OPENHD_DEPENDENCIES = libglib2 host-pkgconf
+OPENHD_SITE = https://github.com/OpenHD/OpenHD
+OPENHD_SITE_METHOD = git
+OPENHD_GIT_SUBMODULES = YES
+OPENHD_VERSION = v2.5.3
+OPENHD_SUBDIR = OpenHD
+
+OPENHD_INSTALL_STAGING = NO
+OPENHD_INSTALL_TARGET = YES
+
+OPENHD_DEPENDENCIES = libsodium gstreamer1 gst1-plugins-base gst1-plugins-bad libpcap libusb libv4l host-pkgconf
 $(eval $(cmake-package))
